@@ -115,6 +115,7 @@ init_flow_mod() ->
                 {idle_timeout, 0},
                 {cookie, <<0,0,0,0,0,0,0,1>>},
                 {cookie_mask, <<0,0,0,0,0,0,0,0>>}],
+    lager:info("Add initial flow mod by l2_switch."), 
     of_msg_lib:flow_add(?OF_VER, Matches, Instructions, FlowOpts).
 
 

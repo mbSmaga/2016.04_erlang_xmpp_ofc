@@ -106,7 +106,7 @@ handle_cast(_Request, State) ->
     {noreply, State}.
 
 handle_info({request_flow_stats, DatapathId}, State) ->
-    lager:info("Called: handle_info()"),
+    lager:debug("Called ~p:handle_info()", [?MODULE]),
     GenSwitchPid = State#state.parent_pid,
     request_flow_stats(DatapathId, GenSwitchPid),
     schedule_request_flow_stats(DatapathId),
@@ -134,12 +134,13 @@ init_flow_mod() ->
                 {idle_timeout, 0},
                 {cookie, ?INIT_COOKIE},
                 {cookie_mask, ?COOKIE_MASK}],
+    lager:info("Add initial flow mod by simple_ids_switch."),
     of_msg_lib:flow_add(?OF_VER, Matches, Instructions, FlowOpts).
 
 handle_packet_in({_, Xid, PacketIn}, _, FwdTable0) ->
-    [IpSrc, TCPSrc] = xmpp_ofc_util:packet_in_extract([ipv4_src, tcp_src], PacketIn),
+    [IPSrc, TCPSrc] = xmpp_ofc_util:packet_in_extract([ipv4_src, tcp_src], PacketIn),
     Matches = [{eth_type, ?ETH_TYPE},
-               {ipv4_src, IpSrc},
+               {ipv4_src, IPSrc},
                {ip_proto, ?IP_PROTO},
                {tcp_src, TCPSrc},
                {tcp_dst, ?TCP_DST}],
@@ -151,6 +152,7 @@ handle_packet_in({_, Xid, PacketIn}, _, FwdTable0) ->
 
     FM = of_msg_lib:flow_add(?OF_VER, Matches, Instructions, FlowOpts),
     PO = xmpp_ofc_util:packet_out(Xid, PacketIn, 1),
+    lager:info("Add [FORWARD] flow mod: IPSrc = ~p TCPSrc = ~p", [IPSrc, TCPSrc]),
     {[FM, PO], FwdTable0}.
 
 handle_flow_entry_stats(FlowEntry, Acc) ->
@@ -187,7 +189,7 @@ drop_flow_mod(IPSrc, TCPSrc) ->
                 {hard_timeout, ?FM_TIMEOUT_S(hard)},
                 {cookie, ?COOKIE},
                 {cookie_mask, ?COOKIE_MASK}],
-    lager:info("Adding flow mod. DROP_ALL. IPSrc: ~p TCPSrc: ~p", [IPSrc, TCPSrc]),
+    lager:info("Add [DROP_ALL] flow mod: IPSrc = ~p TCPSrc = ~p", [IPSrc, TCPSrc]),
     of_msg_lib:flow_add(?OF_VER, Matches, Instructions, FlowOpts).
 
 remove_flow_mod(IPSrc, TCPSrc) ->
@@ -201,11 +203,11 @@ remove_flow_mod(IPSrc, TCPSrc) ->
                 {hard_timeout, ?FM_TIMEOUT_S(hard)},
                 {cookie, ?COOKIE},
                 {cookie_mask, ?COOKIE_MASK}],
-    lager:info("Removing flow mod: IPSrc: ~p TCPSrc: ~p", [IPSrc, TCPSrc]),
+    lager:info("Remove flow mod: IPSrc: ~p TCPSrc: ~p", [IPSrc, TCPSrc]),
     of_msg_lib:flow_delete(?OF_VER, Matches, FlowOpts).
 
 schedule_request_flow_stats(DatapathId) ->
-    lager:info("Called: schedule_flow_stats_request()"),
+    lager:debug("Called ~p:schedule_flow_stats_request()", [?MODULE]),
     timer:send_after(?FLOW_STATS_REQUEST_INTERVAL, {request_flow_stats, DatapathId}).
 
 request_flow_stats(DatapathId, GenSwitchPid) ->
